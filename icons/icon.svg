@@ -1,8 +1,16 @@
 <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 512 512">
-  <rect width="512" height="512" fill="#1C1A17"/>
-  <rect x="96" y="76" width="320" height="360" rx="22" fill="#2C2722"/>
-  <g fill="none" stroke="#EDE3CF" stroke-width="10" stroke-linecap="round">
-    <path d="M202.7 96V416M309.3 96V416M116 196H396M116 316H396"/>
+  <defs>
+    <radialGradient id="g" cx="50%" cy="44%" r="62%">
+      <stop offset="0" stop-color="#8f0b10" stop-opacity=".95"/>
+      <stop offset=".45" stop-color="#8f0b10" stop-opacity=".4"/>
+      <stop offset="1" stop-color="#8f0b10" stop-opacity="0"/>
+    </radialGradient>
+  </defs>
+  <rect width="512" height="512" fill="#050505"/>
+  <rect width="512" height="512" fill="url(#g)"/>
+  <rect x="106" y="86" width="300" height="340" rx="18" fill="none" stroke="#f2f2ef" stroke-opacity=".35" stroke-width="6"/>
+  <g fill="none" stroke="#f2f2ef" stroke-width="9" stroke-linecap="round">
+    <path d="M206 98V414M306 98V414M118 199H394M118 313H394"/>
   </g>
-  <circle cx="309.3" cy="196" r="22" fill="#F2A93B"/>
+  <circle cx="306" cy="199" r="20" fill="#f2f2ef"/>
 </svg>

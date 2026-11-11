@@ -1,8 +1,9 @@
 // Работа без интернета: приложение сохраняется в памяти телефона после первого открытия.
-const VERSION = 'kadr-v1';
+const VERSION = 'kadr-v2';
 const SHELL = [
   './', 'index.html', 'style.css', 'js/app.js', 'js/grids.js', 'manifest.webmanifest',
   'icons/icon.svg', 'icons/icon-180.png', 'icons/icon-192.png', 'icons/icon-512.png', 'examples/index.json',
+  'fonts/unbounded-cyr.woff2', 'fonts/unbounded-lat.woff2', 'fonts/onest-cyr.woff2', 'fonts/onest-lat.woff2',
 ];
 
 self.addEventListener('install', (e) => {

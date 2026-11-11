@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no">
-<meta name="theme-color" content="#1C1A17">
+<meta name="theme-color" content="#050505">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
@@ -12,28 +12,24 @@
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="apple-touch-icon" href="icons/icon-180.png">
 <link rel="icon" href="icons/icon.svg" type="image/svg+xml">
+<link rel="preload" href="fonts/unbounded-cyr.woff2" as="font" type="font/woff2" crossorigin>
+<link rel="preload" href="fonts/onest-cyr.woff2" as="font" type="font/woff2" crossorigin>
 <link rel="stylesheet" href="style.css">
 </head>
 <body>
+<div class="brand-glow" aria-hidden="true"></div>
 <div class="app" id="app">
 
   <header class="top">
-    <button class="tb" id="btnAspect" aria-label="Формат кадра">3:4</button>
-    <button class="tb" id="btnLevel" aria-label="Уровень горизонта" aria-pressed="false">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M3 12h6m6 0h6"/><circle cx="12" cy="12" r="3"/></svg>
-    </button>
-    <button class="tb" id="btnTimer" aria-label="Таймер">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="13" r="7.5"/><path d="M12 9v4l2.5 2M9.5 3h5"/></svg>
-      <span id="timerVal"></span>
-    </button>
-    <button class="tb" id="btnMore" aria-label="Настройки">
-      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h10m4 0h2M4 17h4m4 0h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>
-    </button>
+    <button class="pill-g" id="btnAspect" aria-label="Формат кадра">3:4</button>
+    <button class="pill-g" id="btnLevel" aria-pressed="false">Уровень</button>
+    <button class="pill-g" id="btnTimer" aria-label="Таймер">Таймер<span id="timerVal"></span></button>
+    <button class="pill-g" id="btnMore">Ещё</button>
   </header>
 
   <main class="stage" id="stage">
     <div class="frame" id="frame">
-      <video id="video" playsinline muted autoplay></video>
+      <video id="video" playsinline webkit-playsinline muted autoplay disablepictureinpicture></video>
       <img class="still" id="still" alt="" hidden>
       <svg class="ov" id="overlay" aria-hidden="true"></svg>
       <div class="level" id="level" hidden><i></i><b id="levelVal">0,0°</b></div>
@@ -45,6 +41,7 @@
         <p id="emptyText"></p>
         <div class="empty-actions">
           <button class="pill" id="btnRetry">Включить камеру</button>
+          <button class="pill ghost" id="btnNative2">Штатная камера</button>
           <button class="pill ghost" id="btnOpenFile2">Разобрать фото</button>
         </div>
       </div>
@@ -74,8 +71,8 @@
 
   <footer class="deck">
     <button class="namebar" id="namebar" aria-label="Показать подсказку к сетке">
-      <span id="gridName">Правило третей</span>
-      <span class="dots" id="dots"></span>
+      <span class="gname" id="gridName">Правило третей</span>
+      <span class="gvar" id="dots"></span>
     </button>
     <div class="carousel" id="carousel" role="listbox" aria-label="Сетки композиции"></div>
     <div class="zoom" id="zoom" hidden></div>
@@ -94,14 +91,26 @@
   <div class="sheet" role="dialog" aria-label="Настройки">
     <div class="sheet-grip"></div>
     <h2>Настройки</h2>
+    <div class="row col">
+      <span class="lbl-m">Качество камеры</span>
+      <div class="seg" id="optQuality">
+        <button data-q="std">Плавно · 1920</button>
+        <button data-q="max">Максимум · 4032</button>
+      </div>
+      <small>«Максимум» на iPhone может подтормаживать. Чёрный кадр — верни «Плавно».</small>
+    </div>
     <label class="row"><span>Сетка на снимке<small>Линии впечатаются в фото</small></span><input type="checkbox" id="optBurn"><i class="sw"></i></label>
     <label class="row"><span>Подсказка при выборе сетки</span><input type="checkbox" id="optTips"><i class="sw"></i></label>
     <label class="row col"><span>Яркость сетки</span><input type="range" id="optOpacity" min="35" max="100" step="5"></label>
     <label class="row"><span>Уровень наоборот<small>Если линия уровня крутится не в ту сторону</small></span><input type="checkbox" id="optInvert"><i class="sw"></i></label>
-    <button class="pill wide" id="btnOpenFile">Разобрать готовое фото</button>
+    <div class="sheet-actions">
+      <button class="pill" id="btnNative">Снять штатной камерой</button>
+      <button class="pill ghost" id="btnOpenFile">Разобрать готовое фото</button>
+    </div>
+    <p class="info">Штатная камера iPhone снимает в полном качестве, потом фото открывается здесь с сеткой.</p>
     <p class="info" id="resInfo"></p>
     <p class="info">Снимки хранятся только в этом браузере. В «Фото» — кнопкой «Сохранить», дальше «Сохранить изображение».</p>
-    <p class="info">На экран «Домой»: Safari → кнопка «Поделиться» → «На экран „Домой“».</p>
+    <p class="info">На экран «Домой»: Safari → «Поделиться» → «На экран „Домой“».</p>
   </div>
 </div>
 
@@ -109,7 +118,7 @@
 <div class="gallery" id="gallery" hidden>
   <header class="g-top">
     <h2>Снимки</h2>
-    <button class="tb" id="galleryClose">Готово</button>
+    <button class="pill-g" id="galleryClose">Готово</button>
   </header>
   <div class="g-grid" id="gGrid"></div>
   <p class="g-empty" id="gEmpty">Здесь появятся снимки. Чтобы снимок попал в «Фото», открой его и нажми «Сохранить».</p>
@@ -118,14 +127,15 @@
 <div class="viewer" id="viewer" hidden>
   <img id="viewImg" alt="">
   <div class="v-bar">
-    <button class="pill ghost" id="vClose">Назад</button>
-    <button class="pill ghost" id="vReview">Разобрать</button>
-    <button class="pill ghost" id="vDelete">Удалить</button>
+    <button class="pill-g" id="vClose">Назад</button>
+    <button class="pill-g" id="vReview">Разобрать</button>
+    <button class="pill-g" id="vDelete">Удалить</button>
     <button class="pill" id="vSave">Сохранить</button>
   </div>
 </div>
 
 <input type="file" id="fileIn" accept="image/*" hidden>
+<input type="file" id="nativeIn" accept="image/*" capture="environment" hidden>
 
 <script type="module" src="js/app.js"></script>
 </body>

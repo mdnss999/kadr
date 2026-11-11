@@ -22,6 +22,7 @@ const store = {
 };
 
 const ASPECTS = ['3:4', '9:16', '1:1'];
+const qualityBtns = [...document.querySelectorAll('#optQuality button')];
 const st = {
   grid: store.get('grid', 'thirds'),
   variants: store.get('variants', {}),
@@ -33,6 +34,7 @@ const st = {
   tips: store.get('tips', true),
   opacity: store.get('opacity', 85),
   invert: store.get('invert', false),
+  quality: store.get('quality', 'std') === 'max' ? 'max' : 'std',
   target: store.get('target', [2 / 3, 1 / 3]),
   roll: 0, hasRoll: false, flat: false,
   mode: 'camera', reviewBlob: null,
@@ -81,9 +83,9 @@ function renderOverlay() {
   const w = els.frame.clientWidth, h = els.frame.clientHeight;
   if (!w || !h) return;
   els.overlay.setAttribute('viewBox', `0 0 ${w} ${h}`);
-  els.overlay.innerHTML = drawGrid(st.grid, w, h, variantOf(st.grid), {
+  els.overlay.innerHTML = withHalo(drawGrid(st.grid, w, h, variantOf(st.grid), {
     roll: st.roll, hasRoll: st.hasRoll && !st.flat, target: targetPx(w, h),
-  });
+  }));
 }
 
 /* ---------- лента сеток ---------- */
@@ -117,8 +119,9 @@ function markSelected(scroll = true) {
 function renderNamebar() {
   const g = GRIDS[st.grid];
   els.gridName.textContent = g.name;
+  els.gridName.classList.toggle('long', g.name.length > 15);
   const n = g.variants || 1, v = variantOf(st.grid);
-  els.dots.innerHTML = n > 1 ? Array.from({ length: n }, (_, i) => `<i class="${i === v ? 'on' : ''}"></i>`).join('') : '';
+  els.dots.textContent = n > 1 ? `${v + 1}/${n}` : '';
   els.help.hidden = st.grid === 'none' || els.card.classList.contains('open');
 }
 
@@ -165,7 +168,7 @@ function fillCard() {
   els.cardEx.innerHTML =
     `<svg viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">${drawScene(id, v)}</svg>` +
     (ownExamples.has(id) ? `<img src="examples/${id}.jpg" alt="" onerror="this.remove()">` : '') +
-    `<svg class="exgrid" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">${drawGrid(id, 300, 400, v, { pr: 8, fs: 20, target: [200, 133], roll: 0 })}</svg>`;
+    `<svg class="exgrid" viewBox="0 0 300 400" preserveAspectRatio="xMidYMid slice">${withHalo(drawGrid(id, 300, 400, v, { pr: 8, fs: 20, target: [200, 133], roll: 0 }))}</svg>`;
 }
 function openCard() { fillCard(); els.card.classList.add('open'); renderNamebar(); }
 function closeCard() { els.card.classList.remove('open'); renderNamebar(); }
@@ -187,7 +190,10 @@ async function startCamera() {
     if (!navigator.mediaDevices?.getUserMedia) throw Object.assign(new Error('no api'), { name: 'NoApi' });
     stream = await navigator.mediaDevices.getUserMedia({
       audio: false,
-      video: { facingMode: { ideal: st.facing }, width: { ideal: 4032 }, height: { ideal: 3024 } },
+      // «Плавно» — 1920×1440: iPhone тянет без лагов. «Максимум» — 4032×3024: резче, но тяжелее.
+      video: st.quality === 'max'
+        ? { facingMode: { ideal: st.facing }, width: { ideal: 4032 }, height: { ideal: 3024 }, frameRate: { ideal: 30, max: 30 } }
+        : { facingMode: { ideal: st.facing }, width: { ideal: 1920 }, height: { ideal: 1440 }, frameRate: { ideal: 30, max: 30 } },
     });
     track = stream.getVideoTracks()[0];
     els.video.srcObject = stream;
@@ -257,14 +263,19 @@ function flash() {
   els.flash.classList.remove('go'); void els.flash.offsetWidth; els.flash.classList.add('go');
 }
 
+// Сетка поверх кадра: тёмная подложка снизу, светлая линия сверху.
+const withHalo = (s) => `<g class="halo">${s}</g>${s}`;
+
 async function gridImage(W, H) {
-  const k = W / 360;
-  const css = `.m{fill:none;stroke:#F8F1E2;stroke-width:${1.25 * k};stroke-linecap:round;stroke-linejoin:round}
-    .s{fill:none;stroke:#F8F1E2;stroke-width:${k};stroke-dasharray:${4 * k} ${5 * k};opacity:.7}
-    .pt{fill:#F8F1E2}.shade{fill:rgba(14,12,10,.35)}.acc{stroke:#F2A93B;stroke-width:${1.6 * k}}.ok{stroke:#9ED38F}
-    .lbl{fill:#F8F1E2;font-family:-apple-system,system-ui,sans-serif;font-weight:500}`;
+  const k = Math.min(W, H) / 360;
+  const css = `.m{fill:none;stroke:#F2F2EF;stroke-width:${1.2 * k};stroke-linecap:round;stroke-linejoin:round}
+    .s{fill:none;stroke:#F2F2EF;stroke-width:${k};stroke-dasharray:${4 * k} ${5 * k};opacity:.75}
+    .pt{fill:#F2F2EF}.shade{fill:rgba(5,5,5,.35)}.acc{stroke:#EC3A32;stroke-width:${1.6 * k}}.ok{stroke:#9ED38F}
+    .lbl{display:none}
+    .halo .m,.halo .s,.halo .acc,.halo .ok{stroke:rgba(0,0,0,.3);stroke-width:${3 * k};stroke-dasharray:none;opacity:1}
+    .halo .pt{fill:rgba(0,0,0,.3)}.halo .shade{display:none}`;
   const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="${W}" height="${H}" viewBox="0 0 ${W} ${H}"><style>${css}</style>` +
-    drawGrid(st.grid, W, H, variantOf(st.grid), { pr: Math.max(3, Math.min(W, H) * 0.012), fs: Math.min(W, H) * 0.03, roll: st.roll, hasRoll: st.hasRoll, target: targetPx(W, H) }) + '</svg>';
+    withHalo(drawGrid(st.grid, W, H, variantOf(st.grid), { pr: Math.max(3, Math.min(W, H) * 0.012), fs: Math.min(W, H) * 0.03, roll: st.roll, hasRoll: st.hasRoll, target: targetPx(W, H) })) + '</svg>';
   const url = URL.createObjectURL(new Blob([svg], { type: 'image/svg+xml' }));
   try {
     const img = new Image();
@@ -285,33 +296,86 @@ async function grabSource() {
       bmp.close?.();
     } catch { /* берём кадр из видео */ }
   }
+  await freshFrame();
   return { src: els.video, sw: els.video.videoWidth, sh: els.video.videoHeight };
+}
+
+// Ждём свежий кадр видео: на iPhone кадр, взятый «между» кадрами, бывает чёрным.
+function freshFrame() {
+  const v = els.video;
+  return new Promise((res) => {
+    const done = () => res();
+    if (v.requestVideoFrameCallback) { v.requestVideoFrameCallback(done); setTimeout(done, 250); }
+    else requestAnimationFrame(() => requestAnimationFrame(done));
+  });
+}
+
+// Кадр почти целиком чёрный? Смотрим уменьшенную копию 16×16.
+function isBlack(canvas) {
+  const t = document.createElement('canvas');
+  t.width = 16; t.height = 16;
+  const g = t.getContext('2d', { willReadFrequently: true });
+  g.drawImage(canvas, 0, 0, 16, 16);
+  const d = g.getImageData(0, 0, 16, 16).data;
+  let sum = 0;
+  for (let i = 0; i < d.length; i += 4) sum += d[i] + d[i + 1] + d[i + 2];
+  t.width = t.height = 0;
+  return sum / (d.length / 4) < 6;
+}
+
+// Освобождаем память холста сразу: iPhone держит мало памяти на холсты, и после пары снимков они чернеют.
+const freeCanvas = (c) => { c.width = 0; c.height = 0; };
+
+function toBlob(c, q) { return new Promise((r) => c.toBlob(r, 'image/jpeg', q)); }
+
+async function makeThumb(c) {
+  const k = 360 / Math.max(c.width, c.height);
+  const t = document.createElement('canvas');
+  t.width = Math.max(1, Math.round(c.width * k)); t.height = Math.max(1, Math.round(c.height * k));
+  t.getContext('2d').drawImage(c, 0, 0, t.width, t.height);
+  const b = await toBlob(t, 0.8);
+  freeCanvas(t);
+  return b;
 }
 
 async function capture() {
   if (st.busy || st.mode !== 'camera' || !track) return;
   st.busy = true; els.shutter.disabled = true;
+  let c;
   try {
     if (st.timer) await countdown(st.timer);
     const a = els.frame.clientWidth / els.frame.clientHeight;
-    const { src, sw, sh } = await grabSource();
+    c = document.createElement('canvas');
+    for (let attempt = 0; attempt < 3; attempt++) {
+      const { src, sw, sh } = await grabSource();
+      if (!sw || !sh) { await wait(120); continue; }
+      let cw = sw, ch = sw / a;
+      if (ch > sh) { ch = sh; cw = sh * a; }
+      c.width = Math.round(cw); c.height = Math.round(ch);
+      const g = c.getContext('2d');
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      if (st.facing === 'user') { g.translate(c.width, 0); g.scale(-1, 1); }
+      g.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, c.width, c.height);
+      g.setTransform(1, 0, 0, 1, 0, 0);
+      src.close?.();
+      if (!isBlack(c)) break;
+      if (attempt === 2) throw Object.assign(new Error('black'), { black: true });
+      await wait(150);
+    }
     flash();
-    if (!sw || !sh) throw new Error('пустой кадр');
-    let cw = sw, ch = sw / a;
-    if (ch > sh) { ch = sh; cw = sh * a; }
-    const c = document.createElement('canvas');
-    c.width = Math.round(cw); c.height = Math.round(ch);
-    const g = c.getContext('2d');
-    if (st.facing === 'user') { g.translate(c.width, 0); g.scale(-1, 1); }
-    g.drawImage(src, (sw - cw) / 2, (sh - ch) / 2, cw, ch, 0, 0, c.width, c.height);
-    g.setTransform(1, 0, 0, 1, 0, 0);
-    if (st.burn && st.grid !== 'none') g.drawImage(await gridImage(c.width, c.height), 0, 0);
-    const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.95));
-    const shot = await addShot(blob, c.width, c.height);
-    toast(`Снято · ${c.width}×${c.height}`, 'Сохранить', () => saveBlob(shot.blob, shot.id));
+    if (st.burn && st.grid !== 'none') c.getContext('2d').drawImage(await gridImage(c.width, c.height), 0, 0);
+    const blob = await toBlob(c, 0.94);
+    if (!blob) throw Object.assign(new Error('black'), { black: true });
+    const thumb = await makeThumb(c);
+    const w = c.width, h = c.height;
+    const shot = await addShot(blob, w, h, thumb);
+    toast(`Снято, ${w}×${h}`, 'Сохранить', () => saveBlob(shot.blob, shot.id));
   } catch (e) {
-    toast('Не получилось снять. Попробуй ещё раз.');
+    if (e?.black && st.quality === 'max') toast('Камера отдала пустой кадр. Поставь в «Ещё» качество «Плавно».', 'Поставить', () => setQuality('std'), 6000);
+    else if (e?.black) toast('Камера отдала пустой кадр. Подожди секунду и сними ещё раз.');
+    else toast('Не получилось снять. Попробуй ещё раз.');
   } finally {
+    if (c) freeCanvas(c);
     st.busy = false; els.shutter.disabled = !track;
   }
 }
@@ -341,8 +405,8 @@ const db = (() => {
   };
 })();
 
-async function addShot(blob, w, h) {
-  const shot = { id: Date.now(), blob, w, h, grid: st.grid };
+async function addShot(blob, w, h, thumb) {
+  const shot = { id: Date.now(), blob, thumb, w, h, grid: st.grid };
   st.shots.unshift(shot);
   try { await db.put(shot); } catch { /* останется до перезагрузки */ }
   updateThumb();
@@ -354,7 +418,7 @@ function updateThumb() {
   if (thumbUrl) URL.revokeObjectURL(thumbUrl);
   const s = st.shots[0];
   if (!s) { els.thumbImg.hidden = true; return; }
-  thumbUrl = URL.createObjectURL(s.blob);
+  thumbUrl = URL.createObjectURL(s.thumb || s.blob);
   els.thumbImg.src = thumbUrl; els.thumbImg.hidden = false;
 }
 
@@ -379,19 +443,21 @@ async function saveBlob(blob, id) {
 let galleryUrls = [];
 function openGallery() {
   galleryUrls.forEach(URL.revokeObjectURL);
-  galleryUrls = st.shots.map((s) => URL.createObjectURL(s.blob));
+  galleryUrls = st.shots.map((s) => URL.createObjectURL(s.thumb || s.blob));
   els.gGrid.innerHTML = st.shots.map((s, i) => `<button data-i="${i}" aria-label="Снимок ${i + 1}"><img src="${galleryUrls[i]}" alt=""></button>`).join('');
   els.gEmpty.hidden = st.shots.length > 0;
   els.gallery.hidden = false;
 }
 function closeGallery() { els.gallery.hidden = true; }
 
-let viewing = null;
+let viewing = null, viewUrl = null;
 els.gGrid.addEventListener('click', (e) => {
   const b = e.target.closest('button'); if (!b) return;
   const i = Number(b.dataset.i);
   viewing = st.shots[i];
-  els.viewImg.src = galleryUrls[i];
+  if (viewUrl) URL.revokeObjectURL(viewUrl);
+  viewUrl = URL.createObjectURL(viewing.blob);
+  els.viewImg.src = viewUrl;
   els.viewer.hidden = false;
 });
 $('#vClose').onclick = () => { els.viewer.hidden = true; };
@@ -448,8 +514,9 @@ async function saveReview() {
   const g = c.getContext('2d');
   g.drawImage(img, 0, 0);
   if (st.grid !== 'none') g.drawImage(await gridImage(c.width, c.height), 0, 0);
-  const blob = await new Promise((r) => c.toBlob(r, 'image/jpeg', 0.93));
-  saveBlob(blob);
+  const blob = await toBlob(c, 0.93);
+  freeCanvas(c);
+  if (blob) saveBlob(blob); else toast('Фото слишком большое для сохранения с сеткой.');
 }
 els.fileIn.addEventListener('change', () => {
   const f = els.fileIn.files?.[0];
@@ -457,6 +524,29 @@ els.fileIn.addEventListener('change', () => {
   if (f) { els.settings.hidden = true; enterReview(f); }
 });
 const pickFile = () => els.fileIn.click();
+
+// Штатная камера iPhone: полное качество, потом фото открывается здесь с сеткой.
+const nativeIn = $('#nativeIn');
+nativeIn.addEventListener('change', () => {
+  const f = nativeIn.files?.[0];
+  nativeIn.value = '';
+  if (f) { els.settings.hidden = true; enterReview(f); addShotFromFile(f); }
+});
+const pickNative = () => nativeIn.click();
+
+async function addShotFromFile(f) {
+  try {
+    const bmp = await createImageBitmap(f);
+    const c = document.createElement('canvas');
+    c.width = bmp.width; c.height = bmp.height;
+    c.getContext('2d').drawImage(bmp, 0, 0);
+    bmp.close?.();
+    const thumb = await makeThumb(c);
+    const w = c.width, h = c.height;
+    freeCanvas(c);
+    await addShot(f, w, h, thumb);
+  } catch { /* фото всё равно открыто для разбора */ }
+}
 
 /* ---------- уровень горизонта ---------- */
 const IOS = /iP(hone|ad|od)/.test(navigator.userAgent) || (navigator.platform === 'MacIntel' && navigator.maxTouchPoints > 1);
@@ -563,7 +653,8 @@ function moveTarget(e) {
 /* ---------- кнопки ---------- */
 function renderTop() {
   els.aspect.textContent = st.aspect;
-  els.timerVal.textContent = st.timer ? `${st.timer} с` : '';
+  els.timerVal.textContent = st.timer ? ` ${st.timer} с` : '';
+  qualityBtns.forEach((b) => b.classList.toggle('on', b.dataset.q === st.quality));
   els.timer.classList.toggle('on', !!st.timer);
   els.levelBtn.classList.toggle('on', st.level);
   document.documentElement.style.setProperty('--gop', String(st.opacity / 100));
@@ -595,6 +686,14 @@ $('#galleryClose').onclick = closeGallery;
 $('#btnRetry').onclick = startCamera;
 $('#btnOpenFile').onclick = pickFile;
 $('#btnOpenFile2').onclick = pickFile;
+$('#btnNative').onclick = pickNative;
+$('#btnNative2').onclick = pickNative;
+function setQuality(q) {
+  if (st.quality === q) return;
+  st.quality = q; store.set('quality', q); renderTop();
+  if (st.mode === 'camera') startCamera();
+}
+qualityBtns.forEach((b) => { b.onclick = () => setQuality(b.dataset.q); });
 $('#btnBack').onclick = exitReview;
 $('#btnSaveReview').onclick = saveReview;
 
